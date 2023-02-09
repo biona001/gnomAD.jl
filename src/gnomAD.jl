@@ -1,5 +1,11 @@
 module gnomAD
 
-greet() = print("Hello World!")
+using AWSS3
+using ProgressMeter
+
+export download_LD_matrices,
+    get_all_filenames
+
+include("download.jl")
 
 end # module
