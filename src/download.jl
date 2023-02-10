@@ -46,9 +46,9 @@ function download_LD_matrices(
     end
     # .bm (LD matrix Hail Block Matrix) files are in bucket/bmpath/parts/*
     bmfiles = readdir(S3Path(joinpath("s3://", bucket, bmpath, "parts") * "/"))
-    target_files = isinf(num_files) ? bmfiles[start_from:end] : 
-        bmfiles[start_from:start_from+num_files-1]
-    @showprogress for file in target_files
+    last_file = start_from+num_files-1 > length(bmfiles) ? 
+        length(bmfiles) : start_from+num_files-1
+    @showprogress for file in bmfiles[start_from:last_file]
         s3_get_file(bucket, 
             joinpath(bmpath, "parts", file), 
             joinpath(partsdir, file))
