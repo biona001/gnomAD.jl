@@ -41,13 +41,10 @@ function download_LD_matrices(
     bucket = "gnomad-public-us-east-1/release"
     bmpath = "2.1.1/ld/gnomad.genomes.r2.1.1.$population.common.adj.ld.bm"
     # download metadata and success indicator file
-    s3_get_file(bucket, 
-        joinpath(bmpath, "metadata.json"), 
-        joinpath(datadir, "metadata.json"))
-    s3_get_file(bucket, 
-        joinpath(bmpath, "_SUCCESS"), 
-        joinpath(datadir, "_SUCCESS"))
-    # .bm (LD matrix Hail Block Matrix) files are listed under bucket/bmpath/parts/*
+    for file in ["metadata.json", "_SUCCESS"]
+        s3_get_file(bucket, joinpath(bmpath, file), joinpath(datadir, file))
+    end
+    # .bm (LD matrix Hail Block Matrix) files are in bucket/bmpath/parts/*
     bmfiles = readdir(S3Path(joinpath("s3://", bucket, bmpath, "parts") * "/"))
     target_files = isinf(num_files) ? bmfiles[start_from:end] : 
         bmfiles[start_from:start_from+num_files-1]

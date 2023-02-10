@@ -2,10 +2,28 @@ module gnomAD
 
 using AWSS3
 using ProgressMeter
+using PyCall
 
 export download_LD_matrices,
-    get_all_filenames
+    get_all_filenames,
+    hail_block_matrix
 
 include("download.jl")
+include("hailBM.jl")
+
+# This to allow precompilation
+# Unlike the @pyimport macro, this does not define a Julia module and members cannot be accessed with s.name.
+# @see https://github.com/JuliaPy/PyCall.jl/issues/328
+const hail = PyNULL()
+
+function __init__()
+    try
+        pyimport("hail")
+    catch
+        error("The gnomAD module is correctly installed, but your python installation is missing the 'hail' module.")
+    end
+    copy!(hail, pyimport("hail.linalg"))
+end
+
 
 end # module
