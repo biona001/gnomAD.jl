@@ -11,7 +11,7 @@ https://hail.is/docs/0.2/_modules/hail/linalg/blockmatrix.html#BlockMatrix
 A more specific file description is provided here
 https://discuss.hail.is/t/blockmatrix-specification/3118
 """
-struct HailBlockMatrix
+struct HailBlockMatrix <: AbstractMatrix{Float64}
     bm_files::String
     bm::PyObject
 end
@@ -26,11 +26,16 @@ function Base.getindex(x::HailBlockMatrix, i::Int, j::Int)
     i ≤ 0 || j ≤ 0 && error("attempt to access matrix at index [$i, $j]")
     i > j ? 0.0 : x.bm[i, j]
 end
-function get_block(x::HailBlockMatrix, range_start::Int, range_end::Int)
-    1 ≤ range_start ≤ size(x, 1) || error("range_start out of bounds")
-    1 ≤ range_end ≤ size(x, 1) || error("range_end out of bounds")
-    Σ = py"convert"(x.bm, range_start-1, range_end)
-    LinearAlgebra.copytri!(Σ, 'U')
+function Base.getindex(x::HailBlockMatrix, idx1::UnitRange, idx2::UnitRange)
+    _get_block(x, first(idx1), last(idx1), first(idx2), last(idx2))
+end
+function _get_block(x::HailBlockMatrix, 
+    x_start::Int, x_end::Int, y_start::Int, y_end::Int)
+    1 ≤ x_start ≤ size(x, 1) && 1 ≤ y_start ≤ size(x, 1) && 
+        1 ≤ x_end ≤ size(x, 1) && 1 ≤ y_end ≤ size(x, 1) || 
+        error("x_start out of bounds")
+    # convert function uses python indexing, i.e. 0 based
+    return py"convert"(x.bm, x_start - 1, x_end, y_start - 1, y_end)
 end
 
 Base.size(x::HailBlockMatrix, k::Int) = 

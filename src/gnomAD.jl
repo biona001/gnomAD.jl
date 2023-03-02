@@ -3,12 +3,10 @@ module gnomAD
 using AWSS3
 using ProgressMeter
 using PyCall
-using LinearAlgebra
 
 export download_LD_matrices,
     get_all_filenames,
-    hail_block_matrix,
-    get_block
+    hail_block_matrix
 
 include("download.jl")
 include("hailBM.jl")
@@ -35,8 +33,8 @@ function __init__()
     
     # function for reading a block of BlockMatrix
     py"""
-    def convert(bm, range_start, range_end):
-        return bm[range_start:range_end, range_start:range_end].to_numpy()
+    def convert(bm, x_start, x_end, y_start, y_end):
+        return bm[x_start:x_end, y_start:y_end].to_numpy()
     """
 end
 
