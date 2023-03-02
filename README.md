@@ -17,54 +17,53 @@ function. `start_from` and `num_files` keywords allow one to control how many ma
 download (not specifying will download all matrices). A progress meter is automatically displayed. 
 ```julia
 julia> using gnomAD
-julia> population = "afr"
+julia> population = "nfe"
 julia> outdir = "/Users/biona001/.julia/dev/gnomAD/data"
 julia> download_LD_matrices(population, outdir, start_from=1, num_files=3)
 
 Progress: 100%|█████████████████████████████████████████| Time: 0:00:08
 ```
+The result would be saved into `outdir` directory with name `gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm` which itself is a directory. 
 
-To check how many file there are, we provide a convenient function
+To check how many file there are:
 ```julia
 julia> get_all_filenames(population, join=false)
 
-22432-element Vector{String}:
- "part-00000-14-0-0-4eff4018-c6cf-a264-f2e5-e17fb42bfd6e"
- "part-00001-14-1-0-c4c9820f-a915-487a-4056-c855f7442286"
- "part-00002-14-2-0-8af33c53-352d-4d45-cc3b-59a7956fad1a"
- "part-00003-14-3-0-ae814c01-2af9-238c-f100-485d9cb6379c"
- "part-00004-14-4-0-17d481bd-5570-5237-2390-4b1afc51a404"
- "part-00005-14-5-0-3f7ad064-938c-32a9-1ca5-3690f3f95f79"
- "part-00006-14-6-0-189ff387-742c-54c1-1b52-686e3e686b34"
- "part-00007-14-7-0-3d71f087-403a-ef35-4b87-ecbde776a0c2"
- "part-00008-14-8-0-757a13d6-caa1-d0a9-6999-807af9e749f5"
- "part-00009-14-9-0-d599eec5-cb98-fb75-baf7-8869481f131f"
- "part-00010-14-10-0-0779bd48-d897-affc-35de-5f77861cce90"
- "part-00011-14-11-0-0fe8305a-ff43-e5fe-2190-c037ff5a1377"
- "part-00012-14-12-0-b0cafccc-9ad8-f8c9-5534-874c0d8af261"
+10023-element Vector{String}:
+ "part-00000-14-0-0-7e282c91-9060-db76-1d4a-a02877b62910"
+ "part-00001-14-1-0-2bb43364-b9d9-7048-c4e0-74c951357d81"
+ "part-00002-14-2-0-998bf016-ab2f-aaf9-ce80-7888e4ee7524"
+ "part-00003-14-3-0-5ad64a0b-ecb1-cf91-69ab-e3ee2fcdef51"
+ "part-00004-14-4-0-7a03381b-dc38-5f21-f8dd-ad869dd1f340"
+ "part-00005-14-5-0-d78f2159-d71c-adc2-47eb-5af6a6c34015"
+ "part-00006-14-6-0-dc8b5638-9246-15b8-579e-d14ff6a69646"
+ "part-00007-14-7-0-f41e5872-2ed6-36d2-e625-bb6d6261c6bc"
+ "part-00008-14-8-0-27a9b5b4-b329-d7a8-9d86-f3184776cb09"
+ "part-00009-14-9-0-68655a89-424f-0cb7-b35c-583b52c859e3"
+ "part-00010-14-10-0-a60938ee-75ec-91c9-91f3-fbcffa73a20e"
+ "part-00011-14-11-0-3be840ef-ae93-3775-47fe-fc33eedb9911"
+ "part-00012-14-12-0-8cbce5b3-023a-b252-52c2-cc9c717d0ec5"
  ⋮
- "part-22404-14-22404-0-0db2ff54-cb75-e7ab-7ee3-308b22b623c3"
- "part-22405-14-22405-0-6cfed31e-d521-cbff-d756-04a6844b4ff2"
- "part-22406-14-22406-0-7d248ee1-b887-eb00-c7a2-37e66573096c"
- "part-22407-14-22407-0-130eff98-f6e3-848e-9654-32307de33f53"
- "part-22408-14-22408-0-06354349-b83f-2265-39eb-9187e0b7d50b"
- "part-22409-14-22409-0-caff5e31-d811-c65d-4d5f-a249ba444a03"
- "part-22410-14-22410-0-1c5003b0-fe39-0c78-005c-8b9978cf5427"
- "part-22411-14-22411-0-99d9b653-fd96-0a28-0c18-506ee744d098"
- "part-22412-14-22412-0-9fb04ec2-034d-9a41-9b46-3f6b80b32a2d"
- "part-22413-14-22413-0-fa53677f-dfa7-413c-4190-1273c8057717"
- "part-22414-14-22414-0-66a0f19c-d8ab-876a-b70e-4e6741411f69"
- "part-22415-14-22415-0-39a245e9-c9f3-8275-ba4e-ffd24fe3c891"
+ "part-10011-14-10011-0-1ed25fc8-64a3-7084-60be-717f4c447fac"
+ "part-10012-14-10012-0-342cfc1b-d185-4c2d-ad6e-d9595c5b9071"
+ "part-10013-14-10013-0-004a90a8-ec7c-0664-d592-47686c3df576"
+ "part-10014-14-10014-0-fdad432a-59ea-ef55-aa6c-dfebf128272c"
+ "part-10015-14-10015-0-5216889b-97ba-8e71-8d77-27c2e41a7a38"
+ "part-10016-14-10016-0-955e1d70-ef0f-5dc7-cf3f-55c2d7626c53"
+ "part-10017-14-10017-0-14ea97f3-00af-93ba-ffa7-f6a0ff9c6541"
+ "part-10018-14-10018-0-2cc71e56-18a8-de9e-85c8-1513ec63cceb"
+ "part-10019-14-10019-0-16de6180-8034-d811-4875-a91b2da0dad8"
+ "part-10020-14-10020-0-1a65d50c-ffe5-2f10-c510-60e0cfa5b186"
+ "part-10021-14-10021-0-fc83fd8d-e05e-6955-fc58-bcf4296985ba"
+ "part-10022-14-10022-0-216231b4-e554-eac9-d165-ffa8a90fef05"
+
 ```
 
-Finally, here is how to read a block of gnomAD data into memory. We currently rely
-on the Hail python package to read the matrix and use the PyCall package to pass
-it into Julia, but in the future, we will consider developing a native Julia 
-parser to avoid the reliance on Python and Hail altogether. 
+Read block of gnomAD data into memory: 
 
 ```julia
 julia> using gnomAD
-julia> data = "gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
+julia> data = "/Users/biona001/.julia/dev/gnomAD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
 julia> bm = hail_block_matrix(data);
 
 julia> bm[1, 1] # read first entry (note: julia uses 1-based indexing)
@@ -113,6 +112,10 @@ julia> bm[1:1000, 1:1000] # takes roughly 0.5 seconds
     After installing `PyCall.jl`, I had to change 
     `ENV["PYTHON"] = "PATH OF PYTHON EXECUTABLE"` and rebuild `PyCall.jl` via
     `using Pkg; Pkg.build("PyCall")`
+
+We currently rely on the Hail python package to read the matrix and use the PyCall 
+package to pass the result into Julia, but in the future, we will consider developing 
+a native Julia parser to avoid the reliance on Python and Hail altogether. 
 
 ## Trouble shooting
 
