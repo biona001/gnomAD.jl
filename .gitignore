@@ -1,0 +1,5 @@
+.DS_Store
+test/.ipynb_checkpoints
+test/hail*
+data/hail*
+data/gnomad*
