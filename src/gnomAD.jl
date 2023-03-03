@@ -4,8 +4,10 @@ using AWSS3
 using ProgressMeter
 using PyCall
 
-export download_LD_matrices,
-    get_all_filenames,
+export download_gnomad_LD_matrices,
+    download_ukb_LD_matrices,
+    get_gnomad_filenames, 
+    get_ukb_filenames, 
     hail_block_matrix
 
 include("download.jl")

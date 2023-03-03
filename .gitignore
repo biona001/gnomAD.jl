@@ -3,3 +3,4 @@ test/.ipynb_checkpoints
 test/hail*
 data/hail*
 data/gnomad*
+data/UKBB*
