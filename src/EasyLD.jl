@@ -1,4 +1,4 @@
-module gnomAD
+module EasyLD
 
 using AWSS3
 using ProgressMeter
@@ -28,7 +28,7 @@ function __init__()
     try
         pyimport("hail")
     catch
-        error("The gnomAD module is correctly installed, but your python installation is missing the 'hail' module.")
+        error("The EasyLD module is correctly installed, but your python installation is missing the 'hail' module.")
     end
     copy!(hail_linalg, pyimport("hail.linalg"))
     copy!(hail, pyimport("hail"))
@@ -39,6 +39,5 @@ function __init__()
         return bm[x_start:x_end, y_start:y_end].to_numpy()
     """
 end
-
 
 end # module

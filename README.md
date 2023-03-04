@@ -1,4 +1,4 @@
-# Downloading and Parsing gnomAD LD matrices
+# Downloading and Parsing Hail LD matrices
 
 This is a Julia package that helps users download and read blocks of LD (linkage disequilibrium) matrices into memory. We tested it against 
 
@@ -12,16 +12,16 @@ This resource uses [AWSS3.jl](https://github.com/JuliaCloud/AWSS3.jl) to downloa
 To install this package, download [Julia](https://julialang.org/downloads/). Within Julia, execute the following
 ```julia
 using Pkg
-Pkg.add("https://github.com/biona001/gnomAD.jl")
+Pkg.add(url="https://github.com/biona001/EasyLD.jl")
 ```
 
 ## gnomAD: downloading LD matrices and Variant index files
 
 Downloading the LD matrices for a specific population:
 ```julia
-julia> using gnomAD
+julia> using EasyLD
 julia> population = "nfe"
-julia> outdir = "/Users/biona001/.julia/dev/gnomAD/data"
+julia> outdir = "/Users/biona001/.julia/dev/EasyLD/data"
 julia> download_gnomad_LD_matrices(population, outdir, start_from=1, num_files=3)
 
 Progress: 100%|█████████████████████████████████████████| Time: 0:00:08
@@ -65,7 +65,7 @@ julia> get_gnomad_filenames(population, join=false)
 Downloading variant index hail tables: (this tells us chr/pos/ref/alt/SNP-name/alt-allele-frequency)
 
 ```julia
-download_gnomad_variant_index_tables(population, outdir)
+julia> download_variant_index_tables(population, outdir)
 ```
 
 The result will be stored as `gnomad.genomes.r2.1.1.$population.common.adj.ld.variant_indices.ht` in `outdir`
@@ -74,9 +74,9 @@ The result will be stored as `gnomad.genomes.r2.1.1.$population.common.adj.ld.va
 
 Downloading the LD matrices for a specific population:
 ```julia
-julia> using gnomAD
+julia> using EasyLD
 julia> population = "EUR"
-julia> outdir = "/Users/biona001/.julia/dev/gnomAD/data"
+julia> outdir = "/Users/biona001/.julia/dev/EasyLD/data"
 julia> download_ukb_LD_matrices(population, outdir, start_from=1, num_files=10)
 
 Progress: 100%|█████████████████████████████████████████| Time: 0:03:48
@@ -121,7 +121,7 @@ julia> get_ukb_filenames("EUR", join=false)
 Downloading variant index hail tables: (this tells us chr/pos/ref/alt/SNP-name/alt-allele-frequency)
 
 ```julia
-download_ukb_variant_index_tables(population, outdir)
+julia> download_variant_index_tables(population, outdir)
 ```
 
 The result will be stored as `UKBB.$population.ldadj.variant.ht` in `outdir`
@@ -131,8 +131,8 @@ The result will be stored as `UKBB.$population.ldadj.variant.ht` in `outdir`
 Read block of data into memory: 
 
 ```julia
-julia> using gnomAD
-julia> data = "/Users/biona001/.julia/dev/gnomAD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
+julia> using EasyLD
+julia> data = "/Users/biona001/.julia/dev/EasyLD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
 julia> bm = hail_block_matrix(data); # need a ';' to avoid displaying a few entries of bm, which takes ~0.1 seconds per entry
 
 julia> size(bm) # matrix dimension
@@ -178,8 +178,8 @@ julia> bm[1:10000, 1:10000] # read first 10k by 10k block (takes roughly 7 secon
 Because the variant index files are small (at most a few GB), we will export it as a human-readable `.tsv` file to the `.ht` directory for faster reading. This is only done once. 
 
 ```julia
-ht_file = "/Users/biona001/.julia/dev/gnomAD/data/UKBB.EUR.ldadj.variant.ht"
-df = read_variant_index_tables(ht_file)
+julia> ht_file = "gnomad.genomes.r2.1.1.nfe_test.common.adj.ld.variant_indices.ht"
+julia> df = read_variant_index_tables(ht_file)
 
 14207204×4 DataFrame
       Row │ locus        alleles                            pop_freq                           idx      

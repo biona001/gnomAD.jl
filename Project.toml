@@ -1,4 +1,4 @@
-name = "gnomAD"
+name = "EasyLD"
 uuid = "a5d00db5-5f0a-49b9-aaff-6f4121a13ee1"
 authors = ["Benjamin Chu <benchu99@hotmail.com>"]
 version = "0.1.0"
