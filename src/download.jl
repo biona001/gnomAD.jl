@@ -1,5 +1,5 @@
 """
-    download_gnomad_LD_matrices(population::String, outdir::String, num_files = Inf)
+    download_gnomad_LD_matrices(population::String, outdir::String, [start_from], [num_files])
 
 Downloads the LD matrices from gnomAD panel for specified population and saves result to
 `outdir`. See `https://gnomad.broadinstitute.org/downloads#v2-linkage-disequilibrium`.
@@ -41,8 +41,10 @@ function download_gnomad_LD_matrices(
     bucket = "gnomad-public-us-east-1/release"
     bmpath = "2.1.1/ld/gnomad.genomes.r2.1.1.$population.common.adj.ld.bm"
     # download metadata and success indicator file
-    for file in ["metadata.json", "_SUCCESS"]
-        s3_get_file(bucket, joinpath(bmpath, file), joinpath(datadir, file))
+    if start_from == 1
+        for file in ["metadata.json", "_SUCCESS"]
+            s3_get_file(bucket, joinpath(bmpath, file), joinpath(datadir, file))
+        end
     end
     # .bm (LD matrix Hail Block Matrix) files are in bucket/bmpath/parts/*
     bmfiles = readdir(S3Path(joinpath("s3://", bucket, bmpath, "parts") * "/"))
@@ -57,7 +59,7 @@ function download_gnomad_LD_matrices(
 end
 
 """
-    download_ukb_LD_matrices(population::String, outdir::String, num_files = Inf)
+    download_ukb_LD_matrices(population::String, outdir::String, [start_from], [num_files])
 
 Downloads the LD matrices from pan-UK-biobank for specified population and saves
 result to `outdir`. See 
@@ -98,8 +100,10 @@ function download_ukb_LD_matrices(
     bucket = "pan-ukb-us-east-1/ld_release"
     bmpath = "UKBB.$population.ldadj.bm"
     # download metadata and success indicator file
-    for file in ["metadata.json", "_SUCCESS"]
-        s3_get_file(bucket, joinpath(bmpath, file), joinpath(datadir, file))
+    if start_from == 1
+        for file in ["metadata.json", "_SUCCESS"]
+            s3_get_file(bucket, joinpath(bmpath, file), joinpath(datadir, file))
+        end
     end
     # .bm (LD matrix Hail Block Matrix) files are in bucket/bmpath/parts/*
     bmfiles = readdir(S3Path(joinpath("s3://", bucket, bmpath, "parts") * "/"))
@@ -147,4 +151,34 @@ Reads the metadata file and returns a dictionary
 function read_metadata(metafile::String)
     s = read(metafile) |> String
     return JSON.parse(s)
+end
+
+"""
+    download_ukb_variant_index_tables(population::String, outdir::String)
+
+Downloads variant index hail tables from pan-UK-biobank for specified population 
+and saves result to `outdir`. `population` accepts the same population labels as 
+`download_ukb_LD_matrices`. These files are typically at most a few GB.
+"""
+function download_ukb_variant_index_tables(population::String, outdir::String)
+    isdir(outdir) || mkpath(outdir)
+    bucket = "pan-ukb-us-east-1/ld_release"
+    foldername = "UKBB.$population.ldadj.variant.ht"
+    run(`aws s3 cp s3://$(joinpath(bucket, foldername)) $outdir --recursive`)
+    println("success")
+end
+
+"""
+    download_gnomad_variant_index_tables(population::String, outdir::String)
+
+Downloads variant index hail tables from gnomAD panel for specified population 
+and saves result to `outdir`. `population` accepts the same population labels as 
+`download_gnomad_LD_matrices`. These files are typically at most a few GB.
+"""
+function download_gnomad_variant_index_tables(population::String, outdir::String)
+    isdir(outdir) || mkpath(outdir)
+    bucket = "gnomad-public-us-east-1/release"
+    path = "2.1.1/ld/gnomad.genomes.r2.1.1.$population.common.adj.ld.variant_indices.ht"
+    run(`aws s3 cp s3://$(joinpath(bucket, path)) $outdir --recursive`)
+    println("success")
 end

@@ -6,7 +6,7 @@ In the future, a native Julia reader that directly reads
 the compreseed format is desired. 
 
 The Hail Block Matrix format is described here
-https://hail.is/docs/0.2/_modules/hail/linalg/blockmatrix.html#BlockMatrix
+https://hail.is/docs/0.2/linalg/hail.linalg.BlockMatrix.html#blockmatrix
 
 A more specific file description is provided here
 https://discuss.hail.is/t/blockmatrix-specification/3118
@@ -44,5 +44,23 @@ Base.size(x::HailBlockMatrix) = (size(x, 1), size(x, 2))
 
 function hail_block_matrix(bm_files::String)
     isdir(bm_files) || error("Directory $bm_files does not exist")
-    return HailBlockMatrix(bm_files, hail.BlockMatrix.read(bm_files))
+    return HailBlockMatrix(bm_files, hail_linalg.BlockMatrix.read(bm_files))
+end
+
+"""
+    read_variant_index_tables(ht_file::String, outdir::String)
+
+Read variant index hail tables into a DataFrame. The first time this function
+gets called, we will read the original `.ht` files into memory and write the
+result to a tab-separated value `.tsv` file into the same directory as `ht_file`
+"""
+function read_variant_index_tables(ht_file::String)
+    isdir(ht_file) || error("$ht_file is not a directory")
+    tsv_file = joinpath(ht_file, "variant.ht.tsv")
+    if !isfile(tsv_file)
+        println("Exporting raw hail table data to file $tsv_file"); flush(stdout)
+        hail_table = hail.read_table(ht_file)
+        hail_table.export(tsv_file)
+    end
+    return CSV.read(tsv_file, DataFrame)
 end
