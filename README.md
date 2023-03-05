@@ -1,6 +1,8 @@
 # Downloading and Parsing Hail LD matrices
 
-This is a Julia package that helps users download and read blocks of LD (linkage disequilibrium) matrices into memory. We tested it against 
+This is a Julia package that helps users download and read blocks of LD (linkage disequilibrium) matrices into memory. This package is inspired by an [existing pipeline](https://github.com/aaronsossin/gnomAD_LD_Easy_Querying) curated by Aaron Sossin. 
+
+We tested this package for processing the following 
 
 + [gnomAD LD matrices](https://gnomad.broadinstitute.org/downloads#v2-linkage-disequilibrium)
 + [Pan-UKBB LD matrices](https://pan-dev.ukbb.broadinstitute.org/docs/hail-format/index.html)
@@ -65,7 +67,7 @@ julia> get_gnomad_filenames(population, join=false)
 Downloading variant index hail tables: (this tells us chr/pos/ref/alt/SNP-name/alt-allele-frequency)
 
 ```julia
-julia> download_variant_index_tables(population, outdir)
+julia> download_gnomad_variant_index_tables(population, outdir)
 ```
 
 The result will be stored as `gnomad.genomes.r2.1.1.$population.common.adj.ld.variant_indices.ht` in `outdir`
@@ -121,7 +123,7 @@ julia> get_ukb_filenames("EUR", join=false)
 Downloading variant index hail tables: (this tells us chr/pos/ref/alt/SNP-name/alt-allele-frequency)
 
 ```julia
-julia> download_variant_index_tables(population, outdir)
+julia> download_ukb_variant_index_tables(population, outdir)
 ```
 
 The result will be stored as `UKBB.$population.ldadj.variant.ht` in `outdir`
@@ -223,7 +225,7 @@ a native Julia parser to avoid the reliance on Python and Hail altogether.
 
 ## Trouble shooting
 
-+ `PyCall.jl` cannot find `hail` and `numpy` even though I installed them? Julia's `PyCall.jl` by default installs its own local copy of python that is different than the system default. Thus, after installing `PyCall.jl`, I had to change `ENV["PYTHON"] = "PATH OF PYTHON EXECUTABLE"` and rebuild `PyCall.jl` via `using Pkg; Pkg.build("PyCall")`. This will point the python version in `PyCall.jl` to be the default python on your system.
++ `PyCall.jl` cannot find `hail` and `numpy` even though I installed them? Julia's `PyCall.jl` by default installs its own local copy of python that is different than the system default. Thus, after installing `PyCall.jl`, within Julia I had to do `ENV["PYTHON"] = "PATH OF PYTHON EXECUTABLE"` and rebuild `PyCall.jl` via `using Pkg; Pkg.build("PyCall")`. This will point the python version in `PyCall.jl` to be the default python on your system.
 + `Intel MKL FATAL ERROR: Cannot load libmkl_intel_thread.dylib`
 Try following suggestions in [this post](https://github.com/JuliaPy/PyPlot.jl/issues/315). In particular, the following worked for me:
 ```julia
