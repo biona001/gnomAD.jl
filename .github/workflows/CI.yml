@@ -8,6 +8,19 @@ on:
     branches: [main]
     tags: ["*"]
   pull_request:
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  deployments: read
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  pull-requests: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
@@ -74,7 +87,9 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: '1.8'
-      - run: | # add unregistered packages first
+      - run: | # install hail package in python
+          python -m pip install hail
+      - run: | # add unregistered packages
           julia --project=docs -e '
             using Pkg
             pkg"add https://github.com/biona001/EasyLD.jl"'
