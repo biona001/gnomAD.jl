@@ -1,5 +1,9 @@
 # Downloading and Parsing Hail LD matrices
 
+| **Documentation** | **Build Status** | **Code Coverage**  |
+|-------------------|------------------|--------------------|
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://biona001.github.io/EasyLD.jl/dev/) [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://biona001.github.io/EasyLD.jl/stable/) | [![build Actions Status](https://github.com/biona001/EasyLD.jl/workflows/CI/badge.svg)](https://github.com/biona001/EasyLD.jl/actions) | [![codecov](https://codecov.io/gh/biona001/EasyLD.jl/branch/master/graph/badge.svg?token=YyPqiFpIM1)](https://codecov.io/gh/biona001/EasyLD.jl) |
+
 This is a Julia package that helps users download and read blocks of LD (linkage disequilibrium) matrices into memory. This package is inspired by an [existing pipeline](https://github.com/aaronsossin/gnomAD_LD_Easy_Querying) curated by Aaron Sossin. 
 
 We tested this package for processing the following 

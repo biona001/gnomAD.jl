@@ -4,3 +4,5 @@ test/hail*
 data/hail*
 data/gnomad*
 data/UKBB*
+docs/build
+ldetect

@@ -42,6 +42,31 @@ Base.size(x::HailBlockMatrix, k::Int) =
     k == 1 ? x.bm.n_rows : k == 2 ? x.bm.n_cols : k > 2 ? 1 : error("Dimension k out of range")
 Base.size(x::HailBlockMatrix) = (size(x, 1), size(x, 2))
 
+"""
+    hail_block_matrix(bm_files::String)
+
+Creates a `HailBlockMatrix` which allows reading chunks of LD matrix data into 
+memory. It is a subtype of `AbstractMatrix`, so operations like indexing and 
+`size()` works, but only accessing its elements in contiguous chunks is "fast". 
+I may support more functionalities depending on interest. 
+
+# Examples
+
+```julia
+using EasyLD
+data = "/Users/biona001/.julia/dev/EasyLD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
+bm = hail_block_matrix(data); # need a ';' to avoid displaying a few entries of bm, which takes ~0.1 seconds per entry
+
+# get matrix dimension
+size(bm) # returns (14207204, 14207204)
+
+# read first 10k by 10k block into memory (takes roughly 7 seconds)
+bm[1:10000, 1:10000]
+
+# arbitrary slicing works but is very slow
+bm[1:3, 1:2:100] # ~22 seconds
+```
+"""
 function hail_block_matrix(bm_files::String)
     isdir(bm_files) || error("Directory $bm_files does not exist")
     return HailBlockMatrix(bm_files, hail_linalg.BlockMatrix.read(bm_files))
