@@ -23,8 +23,8 @@ Downloads the LD matrices from gnomAD panel for specified population and saves r
 Since there are lots of files to download, one can specify the number
 of files to download by modifying the `num_files` files option. This function
 will download the first `num_files` file counting from the `start_from` element 
-of the output of `get_all_filenames()`. For example, if 
-`myfiles = get_all_filenames("afr")`, then the function will download files 
+of the output of `get_gnomad_filenames()`. For example, if 
+`myfiles = get_gnomad_filenames("afr")`, then the function will download files 
 from `myfiles[start_from]` through `myfiles[start_from+num_files-1]`
 """
 function download_gnomad_LD_matrices(
@@ -82,8 +82,8 @@ result to `outdir`. See
 Since there are lots of files to download, one can specify the number
 of files to download by modifying the `num_files` files option. This function
 will download the first `num_files` file counting from the `start_from` element 
-of the output of `get_all_filenames()`. For example, if 
-`myfiles = get_all_filenames("afr")`, then the function will download files 
+of the output of `get_ukb_filenames()`. For example, if 
+`myfiles = get_ukb_filenames("afr")`, then the function will download files 
 from `myfiles[start_from]` through `myfiles[start_from+num_files-1]`
 """
 function download_ukb_LD_matrices(
