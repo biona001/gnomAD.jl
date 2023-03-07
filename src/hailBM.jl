@@ -73,7 +73,7 @@ function hail_block_matrix(bm_files::String)
 end
 
 """
-    read_variant_index_tables(ht_file::String, outdir::String)
+    read_variant_index_tables(ht_file::String)
 
 Read variant index hail tables into a DataFrame. The first time this function
 gets called, we will read the original `.ht` files into memory and write the
