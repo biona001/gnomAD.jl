@@ -13,6 +13,8 @@ https://discuss.hail.is/t/blockmatrix-specification/3118
 """
 struct HailBlockMatrix <: AbstractMatrix{Float64}
     bm_files::String
+    chr::Vector{String}
+    pos::Vector{Int}
     bm::PyObject
 end
 
@@ -38,12 +40,34 @@ function _get_block(x::HailBlockMatrix,
     return py"convert"(x.bm, x_start - 1, x_end, y_start - 1, y_end)
 end
 
+"""
+    get_block(bm::HailBlockMatrix, chr, start_bp, end_bp)
+
+Reads in a block of LD matrix from chromosome `chr` between basepairs 
+`start_bp` and `end_bp`. The inputs `chr`, `start_bp`, `end_bp` can be Int
+or String. 
+"""
+function get_block(bm::HailBlockMatrix, chr::Union{String, Int}, 
+    start_bp::Union{String, Int}, end_bp::Union{String, Int})
+    # convert start_bp/end_bp to Int and chr to String
+    start_bp = typeof(start_bp) == Int ? start_bp : parse(Int, start_bp)
+    end_bp = typeof(end_bp) == Int ? end_bp : parse(Int, end_bp)
+    chr = typeof(chr) == String ? chr : string(chr)
+    # search for starting/ending position
+    chr_range = findall(x -> x == chr, bm.chr)
+    idx_start = findfirst(x -> x == start_bp, @view(bm.pos[chr_range]))
+    idx_end   = findfirst(x -> x == end_bp, @view(bm.pos[chr_range]))
+    isnothing(idx_start) && error("start_bp $start_bp not in panel")
+    isnothing(idx_end) && error("idx_end $idx_end not in panel")
+    return bm[idx_start:idx_end, idx_start:idx_end]
+end
+
 Base.size(x::HailBlockMatrix, k::Int) = 
     k == 1 ? x.bm.n_rows : k == 2 ? x.bm.n_cols : k > 2 ? 1 : error("Dimension k out of range")
 Base.size(x::HailBlockMatrix) = (size(x, 1), size(x, 2))
 
 """
-    hail_block_matrix(bm_files::String)
+    hail_block_matrix(bm_files::String, ht_files::String)
 
 Creates a `HailBlockMatrix` which allows reading chunks of LD matrix data into 
 memory. It is a subtype of `AbstractMatrix`, so operations like indexing and 
@@ -54,22 +78,34 @@ I may support more functionalities depending on interest.
 
 ```julia
 using EasyLD
-data = "/Users/biona001/.julia/dev/EasyLD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
+datadir = "/Users/biona001/.julia/dev/EasyLD/data"
+bm_file = joinpath(datadir, "UKBB.EUR.ldadj.bm")
+ht_file = joinpath(datadir, "UKBB.EUR.ldadj.variant.ht")
 bm = hail_block_matrix(data); # need a ';' to avoid displaying a few entries of bm, which takes ~0.1 seconds per entry
 
 # get matrix dimension
-size(bm) # returns (14207204, 14207204)
+size(bm) # returns (23960350, 23960350)
+
+# read a single entry
+bm[1, 1] # returns 0.999959841549239
 
 # read first 10k by 10k block into memory (takes roughly 7 seconds)
 bm[1:10000, 1:10000]
 
 # arbitrary slicing works but is very slow
 bm[1:3, 1:2:100] # ~22 seconds
+
+# read a specific chromosome region
+chr = 1
+start_pos = 11063
+end_pos = 91588
+sigma = get_block(bm, chr, start_pos, end_pos)
 ```
 """
-function hail_block_matrix(bm_files::String)
+function hail_block_matrix(bm_files::String, ht_files::String)
     isdir(bm_files) || error("Directory $bm_files does not exist")
-    return HailBlockMatrix(bm_files, hail_linalg.BlockMatrix.read(bm_files))
+    chr, pos = get_chr_and_pos(ht_files)
+    return HailBlockMatrix(bm_files, chr, pos, hail_linalg.BlockMatrix.read(bm_files))
 end
 
 """
@@ -88,4 +124,24 @@ function read_variant_index_tables(ht_file::String)
         hail_table.export(tsv_file)
     end
     return CSV.read(tsv_file, DataFrame)
+end
+
+"""
+    get_chr_and_pos(ht_file::String)
+
+Reads the chromosome number and position of each variable in the variant
+index files into a `Vector{String}` and `Vector{Int}`
+"""
+function get_chr_and_pos(ht_file::String)
+    df = read_variant_index_tables(ht_file)
+    locus = split.(df[!, "locus"], ':')
+    chr = [locus[i][1] for i in eachindex(locus)] |> Vector{String}
+    pos = [parse(Int, locus[i][2]) for i in eachindex(locus)]
+    # check that within each chr, basepair positions are sorted
+    for c in unique(chr)
+        idx = findall(x -> x == c, chr)
+        issorted(@view(pos[idx])) || 
+            error("Basepair positions in chr $chr not sorted!")
+    end
+    return chr, pos
 end

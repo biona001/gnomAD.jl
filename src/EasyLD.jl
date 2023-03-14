@@ -13,7 +13,9 @@ export download_gnomad_LD_matrices,
     get_gnomad_filenames, 
     get_ukb_filenames, 
     hail_block_matrix,
-    read_variant_index_tables
+    read_variant_index_tables,
+    get_chr_and_pos,
+    get_block
 
 include("download.jl")
 include("hailBM.jl")
