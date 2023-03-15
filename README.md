@@ -138,8 +138,9 @@ Read block of data into memory:
 
 ```julia
 julia> using EasyLD
-julia> data = "/Users/biona001/.julia/dev/EasyLD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
-julia> bm = hail_block_matrix(data); # need a ';' to avoid displaying a few entries of bm, which takes ~0.1 seconds per entry
+julia> bm_file = "/Users/biona001/.julia/dev/EasyLD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.bm"
+julia> ht_file = "/Users/biona001/.julia/dev/EasyLD/data/gnomad.genomes.r2.1.1.nfe.common.adj.ld.variant_indices.ht"
+julia> bm = hail_block_matrix(bm_file, ht_file); # the ';' avoids displaying a few entries of bm, which takes ~0.1 seconds per entry
 
 julia> size(bm) # matrix dimension
 (14207204, 14207204)
@@ -172,16 +173,28 @@ julia> bm[1:10000, 1:10000] # read first 10k by 10k block (takes roughly 7 secon
 
 
 # arbitrary slicing works but is very slow
- julia> bm[1:3, 1:2:100] # ~22 seconds
- 3×50 Matrix{Float64}:
+julia> bm[1:3, 1:2:100] # ~22 seconds
+3×50 Matrix{Float64}:
  1.0  -0.0181891   0.00802797  -0.0421512  …  0.0143534     0.0172358
  0.0  -0.00041394  0.00232164  -0.0112066     5.39059e-5   -0.0188801
  0.0   1.0         0.0         -0.0282011     0.000733417  -0.0277042
+
+# read a specific region using chr and basepair positions
+julia> chr = "1"
+julia> start_pos = 10146
+julia> end_pos = 10181
+julia> sigma = get_block(bm, chr, start_pos, end_pos)
+5×5 Matrix{Float64}:
+ 1.0  0.0326361  -0.0181891   0.0166341    0.00802797
+ 0.0  1.0        -0.00041394  0.00540477   0.00232164
+ 0.0  0.0         1.0         0.0177243    0.0
+ 0.0  0.0         0.0         1.0         -0.0073965
+ 0.0  0.0         0.0         0.0          1.0
 ```
 
-## Reading Row/Column information of BlockMatrix into memory 
+## Reading variant index files into a DataFrame
 
-Because the variant index files are small (at most a few GB), we will export it as a human-readable `.tsv` file to the `.ht` directory for faster reading. This is only done once. 
+If one wishes, the `read_variant_index_tables` function reads the variant index files into a `DataFrame`. Because variant index files are small (at most a few GB), we will export it as a human-readable `.tsv` file to the `.ht` directory for faster reading. This is only done once. 
 
 ```julia
 julia> ht_file = "gnomad.genomes.r2.1.1.nfe_test.common.adj.ld.variant_indices.ht"

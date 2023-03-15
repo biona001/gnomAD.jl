@@ -10,4 +10,6 @@
   get_ukb_filenames 
   hail_block_matrix
   read_variant_index_tables
+  get_block
+  get_chr_and_pos
 ```

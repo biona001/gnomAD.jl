@@ -45,7 +45,19 @@ end
 
 Reads in a block of LD matrix from chromosome `chr` between basepairs 
 `start_bp` and `end_bp`. The inputs `chr`, `start_bp`, `end_bp` can be Int
-or String. 
+or String. The result will always be a matrix even if `start_bp == end_bp`.
+
+If `start_bp` or `end_bp` is not in the LD matrix, we will return
+the smallest region that does NOT include them. For example, if 
+`(start_bp, end_bp) = (555, 777)`
+and SNP positions in the LD panel are 
+`bm.pos    = [..., 400,  500,  600,  700,  800,  900, ...]`
+`snp_names = [..., snp4, snp5, snp6, snp7, snp8, snp9, ..]`
+then we will return the LD matrix for `[snp6, snp7]`
+
+# Note
+Make sure `start_bp` and `end_bp` is from the same human genome build as the 
+LD matrices. Pan-UKBB and genomAD both use hg38.
 """
 function get_block(bm::HailBlockMatrix, chr::Union{String, Int}, 
     start_bp::Union{String, Int}, end_bp::Union{String, Int})
@@ -55,10 +67,12 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     chr = typeof(chr) == String ? chr : string(chr)
     # search for starting/ending position
     chr_range = findall(x -> x == chr, bm.chr)
-    idx_start = findfirst(x -> x == start_bp, @view(bm.pos[chr_range]))
-    idx_end   = findfirst(x -> x == end_bp, @view(bm.pos[chr_range]))
-    isnothing(idx_start) && error("start_bp $start_bp not in panel")
-    isnothing(idx_end) && error("idx_end $idx_end not in panel")
+    chr_pos = @view(bm.pos[chr_range])
+    idx_start = searchsortedfirst(chr_pos, start_bp)
+    idx_end = searchsortedlast(chr_pos, end_bp)
+    # check for errors
+    idx_end < chr_pos[1] && error("end_bp occurs before first SNP in bm")
+    idx_start > chr_pos[end] && error("start_bp occurs after last SNP in bm")
     return bm[idx_start:idx_end, idx_start:idx_end]
 end
 
@@ -81,7 +95,7 @@ using EasyLD
 datadir = "/Users/biona001/.julia/dev/EasyLD/data"
 bm_file = joinpath(datadir, "UKBB.EUR.ldadj.bm")
 ht_file = joinpath(datadir, "UKBB.EUR.ldadj.variant.ht")
-bm = hail_block_matrix(data); # need a ';' to avoid displaying a few entries of bm, which takes ~0.1 seconds per entry
+bm = hail_block_matrix(bm_file, ht_file); # need a ';' to avoid displaying a few entries of bm, which takes ~0.1 seconds per entry
 
 # get matrix dimension
 size(bm) # returns (23960350, 23960350)
