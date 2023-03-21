@@ -5,6 +5,8 @@ using ProgressMeter
 using PyCall
 using CSV
 using DataFrames
+using JSON
+using CodecZlib
 
 export download_gnomad_LD_matrices,
     download_ukb_LD_matrices,
@@ -14,8 +16,10 @@ export download_gnomad_LD_matrices,
     get_ukb_filenames, 
     hail_block_matrix,
     read_variant_index_tables,
-    get_chr_and_pos,
-    get_block
+    get_row_info,
+    get_block,
+    read_metadata,
+    extract_genome_build
 
 include("download.jl")
 include("hailBM.jl")

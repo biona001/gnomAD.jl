@@ -15,6 +15,10 @@ struct HailBlockMatrix <: AbstractMatrix{Float64}
     bm_files::String
     chr::Vector{String}
     pos::Vector{Int}
+    ref::Vector{String}
+    alt::Vector{String}
+    af::Vector{Float64}
+    build::String
     bm::PyObject
 end
 
@@ -118,8 +122,9 @@ sigma = get_block(bm, chr, start_pos, end_pos)
 """
 function hail_block_matrix(bm_files::String, ht_files::String)
     isdir(bm_files) || error("Directory $bm_files does not exist")
-    chr, pos = get_chr_and_pos(ht_files)
-    return HailBlockMatrix(bm_files, chr, pos, hail_linalg.BlockMatrix.read(bm_files))
+    chr, pos, ref, alt, af, build = get_row_info(ht_files)
+    return HailBlockMatrix(bm_files, chr, pos, ref, alt, af, build,
+        hail_linalg.BlockMatrix.read(bm_files))
 end
 
 """
@@ -141,21 +146,130 @@ function read_variant_index_tables(ht_file::String)
 end
 
 """
-    get_chr_and_pos(ht_file::String)
+    get_row_info(ht_file::String)
 
-Reads the chromosome number and position of each variable in the variant
-index files into a `Vector{String}` and `Vector{Int}`
+Reads chromosome/position/reference-allele/alternate-allele/alternate-allele-frequency
+of each variable in the variant index files, and the human genome build. 
+Some panels (e.g. Pan-UKB) also contain rsID, but others (e.g. gnomAD) does not,
+so rsID is not saved by default. 
 """
-function get_chr_and_pos(ht_file::String)
+function get_row_info(ht_file::String)
     df = read_variant_index_tables(ht_file)
     locus = split.(df[!, "locus"], ':')
     chr = [locus[i][1] for i in eachindex(locus)] |> Vector{String}
     pos = [parse(Int, locus[i][2]) for i in eachindex(locus)]
+    ref, alt = _extract_ref_alt_alleles(df[!, "alleles"])
+    build = extract_genome_build(ht_file)
+    af = "AF" in names(df) ? df[!, "AF"] : extract_alternate_allele_freq(ht_file)
     # check that within each chr, basepair positions are sorted
     for c in unique(chr)
         idx = findall(x -> x == c, chr)
         issorted(@view(pos[idx])) || 
             error("Basepair positions in chr $chr not sorted!")
     end
-    return chr, pos
+    return chr, pos, ref, alt, af, build
+end
+
+"""
+    extract_alternate_allele_freq(ht_file::String)
+
+Extract alternate allele frequency from the `ht_file` assuming this information 
+is present in the variant index files as JSON format with header `header_name`
+
+For example, in gnomAD, we have
+```julia
+julia> ht_file = "gnomad.genomes.r2.1.1.nfe_test.common.adj.ld.variant_indices.ht"
+julia> df = read_variant_index_tables(ht_file)
+julia> names(df)
+4-element Vector{String}:
+ "locus"
+ "alleles"
+ "pop_freq"
+ "idx"
+julia> df[1, "pop_freq"] # first entry with header `pop_freq` that contains AF
+"{\"AC\":861,\"AF\":0.40922053231939165,\"AN\":2104,\"homozygote_count\":166}"
+```
+Then the AF field for all variants will be extracted
+"""
+function extract_alternate_allele_freq(ht_file::String; header_name = "pop_freq")
+    df = read_variant_index_tables(ht_file)
+    af = zeros(Float64, size(df, 1))
+    for (i, s) in enumerate(df[!, header_name])
+        d = JSON.parse(s)
+        af[i] = d["AF"]
+    end
+    return af
+end
+
+"""
+    _extract_ref_alt_alleles(x::Vector{String})
+
+Helper function to extract the ref/alt alleles from hail tables. Users should call
+`get_row_info` instead of this function. 
+"""
+function _extract_ref_alt_alleles(alleles::Vector{String})
+    ref, alt = String[], String[]
+    for allele in alleles
+        # idx = findall(x -> x == '"', allele)
+        idx1 = findfirst(x -> x == '"', allele)
+        idx2 = findnext(x -> x == '"', allele, idx1+1)
+        idx3 = findnext(x -> x == '"', allele, idx2+1)
+        idx4 = findlast(x -> x == '"', allele)
+        push!(ref, allele[idx1+1:idx2-1])
+        push!(alt, allele[idx3+1:idx4-1])
+    end
+    # check ref/alt is different
+    for (i, (r, a)) in enumerate(zip(ref, alt))
+        r == a && error("Ref allele is equal to alt allele at position $i")
+    end
+    return ref, alt
+end
+# function _extract_ref_alt_alleles(alleles::Vector{String}) # too slow
+#     regex = r"\"(.*?)\""
+#     refs, alts = String[], String[]
+#     for allele in alleles
+#         A1, A2 = split(s, ',')
+#         push!(refs, match(regex, A1).captures[1])
+#         push!(alts, match(regex, A2).captures[1])
+#     end
+#     return refs, alts
+# end
+
+"""
+    extract_human_genome_build(ht_file::String)
+
+Extracts the human genome build information from the variant index folder. We 
+assume this information is stored in a file called `metadata.json` or 
+`metadata.json.gz` for format `Locus(XXX)` where `XXX` is the reference build.
+If this format is not detected, the genome build information will be "Unknown"
+"""
+function extract_genome_build(ht_file::String)
+    locus_dat = ""
+    if isfile(joinpath(ht_file, "metadata.json"))
+        locus_dat = read_metadata(joinpath(ht_file, "metadata.json"))["table_type"]
+    elseif isfile(joinpath(ht_file, "metadata.json.gz"))
+        locus_dat = read_metadata(joinpath(ht_file, "metadata.json.gz"))["table_type"]      
+    end
+    # search for pattern Locus(XXX)
+    regex = r"Locus\((.*?)\)"
+    return occursin(regex, locus_dat) ? match(regex, locus_dat).captures[1] : "Unknown"
+end
+
+"""
+    read_metadata(metafile::String)
+
+Reads the metadata file and returns a dictionary. `metafile` should end with 
+`.json` or `.json.gz`
+"""
+function read_metadata(metafile::String)
+    if endswith(metafile, ".json")
+        s = read(metafile) |> String
+    elseif endswith(metafile, ".json.gz")
+        open(GzipDecompressorStream, metafile) do io
+            s = read(io) |> String
+        end
+    else
+        error("metafile should end with .json or .json.gz")
+    end
+    return JSON.parse(s)
 end

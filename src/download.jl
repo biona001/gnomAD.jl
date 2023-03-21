@@ -144,16 +144,6 @@ function get_ukb_filenames(population::String; join::Bool=false)
 end
 
 """
-    read_metadata(metafile::String)
-
-Reads the metadata file and returns a dictionary
-"""
-function read_metadata(metafile::String)
-    s = read(metafile) |> String
-    return JSON.parse(s)
-end
-
-"""
     download_ukb_variant_index_tables(population::String, outdir::String)
 
 Downloads variant index hail tables from pan-UK-biobank for specified population 
