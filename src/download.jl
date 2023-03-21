@@ -154,7 +154,9 @@ function download_ukb_variant_index_tables(population::String, outdir::String)
     isdir(outdir) || mkpath(outdir)
     bucket = "pan-ukb-us-east-1/ld_release"
     foldername = "UKBB.$population.ldadj.variant.ht"
-    run(`aws s3 cp s3://$(joinpath(bucket, foldername)) $outdir --recursive`)
+    remote_dir = joinpath(bucket, foldername)
+    destination = joinpath(outdir, foldername)
+    run(`aws s3 cp s3://$remote_dir $destination --recursive`)
     println("success")
 end
 
@@ -168,7 +170,9 @@ and saves result to `outdir`. `population` accepts the same population labels as
 function download_gnomad_variant_index_tables(population::String, outdir::String)
     isdir(outdir) || mkpath(outdir)
     bucket = "gnomad-public-us-east-1/release"
-    path = "2.1.1/ld/gnomad.genomes.r2.1.1.$population.common.adj.ld.variant_indices.ht"
-    run(`aws s3 cp s3://$(joinpath(bucket, path)) $outdir --recursive`)
+    foldername = "gnomad.genomes.r2.1.1.$population.common.adj.ld.variant_indices.ht"
+    remote_dir = joinpath(bucket, "2.1.1/ld", foldername)
+    destination = joinpath(outdir, foldername)
+    run(`aws s3 cp s3://$remote_dir $destination --recursive`)
     println("success")
 end

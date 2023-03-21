@@ -69,14 +69,14 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     start_bp = typeof(start_bp) == Int ? start_bp : parse(Int, start_bp)
     end_bp = typeof(end_bp) == Int ? end_bp : parse(Int, end_bp)
     chr = typeof(chr) == String ? chr : string(chr)
+    # check for errors
+    end_bp < chr_pos[1] && error("end_bp occurs before first SNP in bm")
+    start_bp > chr_pos[end] && error("start_bp occurs after last SNP in bm")
     # search for starting/ending position
     chr_range = findall(x -> x == chr, bm.chr)
     chr_pos = @view(bm.pos[chr_range])
     idx_start = searchsortedfirst(chr_pos, start_bp)
     idx_end = searchsortedlast(chr_pos, end_bp)
-    # check for errors
-    idx_end < chr_pos[1] && error("end_bp occurs before first SNP in bm")
-    idx_start > chr_pos[end] && error("start_bp occurs after last SNP in bm")
     return bm[idx_start:idx_end, idx_start:idx_end]
 end
 
