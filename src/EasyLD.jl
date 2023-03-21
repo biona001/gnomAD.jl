@@ -16,10 +16,7 @@ export download_gnomad_LD_matrices,
     get_ukb_filenames, 
     hail_block_matrix,
     read_variant_index_tables,
-    get_row_info,
-    get_block,
-    read_metadata,
-    extract_genome_build
+    get_block
 
 include("download.jl")
 include("hailBM.jl")

@@ -1,9 +1,9 @@
 """
 Currently a `HailBlockMatrix` is just a python wrapper, where data reading is 
 achieved within python by the Hail software, then the result is passed into
-Julia via PyCall.jl. The `bm` field behaves as a `BlockMatrix` from hail. 
-In the future, a native Julia reader that directly reads
-the compreseed format is desired. 
+Julia via PyCall.jl. The `bm` field behaves as a `BlockMatrix` from hail. The
+`info` fields stores the `chr/pos/ref/alt/AF` information, where `pos` uses
+coordinates in genome build `build`.
 
 The Hail Block Matrix format is described here
 https://hail.is/docs/0.2/linalg/hail.linalg.BlockMatrix.html#blockmatrix
@@ -13,11 +13,7 @@ https://discuss.hail.is/t/blockmatrix-specification/3118
 """
 struct HailBlockMatrix <: AbstractMatrix{Float64}
     bm_files::String
-    chr::Vector{String}
-    pos::Vector{Int}
-    ref::Vector{String}
-    alt::Vector{String}
-    af::Vector{Float64}
+    info::DataFrame
     build::String
     bm::PyObject
 end
@@ -69,12 +65,11 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     start_bp = typeof(start_bp) == Int ? start_bp : parse(Int, start_bp)
     end_bp = typeof(end_bp) == Int ? end_bp : parse(Int, end_bp)
     chr = typeof(chr) == String ? chr : string(chr)
-    # check for errors
+    # search for starting/ending position
+    chr_range = findall(x -> x == chr, bm.info[!, "chr"])
+    chr_pos = @view(bm.info[chr_range, "pos"])
     end_bp < chr_pos[1] && error("end_bp occurs before first SNP in bm")
     start_bp > chr_pos[end] && error("start_bp occurs after last SNP in bm")
-    # search for starting/ending position
-    chr_range = findall(x -> x == chr, bm.chr)
-    chr_pos = @view(bm.pos[chr_range])
     idx_start = searchsortedfirst(chr_pos, start_bp)
     idx_end = searchsortedlast(chr_pos, end_bp)
     return bm[idx_start:idx_end, idx_start:idx_end]
@@ -122,64 +117,84 @@ sigma = get_block(bm, chr, start_pos, end_pos)
 """
 function hail_block_matrix(bm_files::String, ht_files::String)
     isdir(bm_files) || error("Directory $bm_files does not exist")
-    chr, pos, ref, alt, af, build = get_row_info(ht_files)
-    return HailBlockMatrix(bm_files, chr, pos, ref, alt, af, build,
+    df = read_variant_index_tables(ht_files)
+    build = _extract_genome_build(ht_files)
+    return HailBlockMatrix(bm_files, df, build,
         hail_linalg.BlockMatrix.read(bm_files))
 end
 
 """
     read_variant_index_tables(ht_file::String)
 
-Read variant index hail tables into a DataFrame. The first time this function
+Read variant index hail tables into a `DataFrame`. The first time this function
 gets called, we will read the original `.ht` files into memory and write the
-result to a tab-separated value `.tsv` file into the same directory as `ht_file`
+result to a tab-separated value `.tsv` file into the same directory as `ht_file`, 
+and we will also create a comma separated file ending in `.csv` which pre-process
+the `.tsv` file for easier reading. 
+
+# Note
++ `rsIDs`: Some panels (e.g. Pan-UKB) also contain rsID, but others (e.g. gnomAD) does not,
+    so rsID may not be available. 
++ `AF`: Alternate Allele frequency is sometimes available in the `.tsv` file in
+    its own column (e.g. Pan-UKB), but other times it's hidden inside a column 
+    of the `.tsv` file (e.g. in gnomAD it is under the header `pop_freq` which
+    includes `AF` but also other information). In the later case, we will assume
+    the column in `.tsv` has header name `alt_allele_header` and is JSON
+    formatted, and further that alt-allele freq is available as `AF` key. See
+    [`_extract_alternate_allele_freq`](@ref)
 """
-function read_variant_index_tables(ht_file::String)
+function read_variant_index_tables(ht_file::String; alt_allele_header = "pop_freq")
     isdir(ht_file) || error("$ht_file is not a directory")
     tsv_file = joinpath(ht_file, "variant.ht.tsv")
-    if !isfile(tsv_file)
-        println("Exporting raw hail table data to file $tsv_file"); flush(stdout)
+    csv_file = joinpath(ht_file, "variant.ht.csv")
+    if !isfile(csv_file)
+        # first export basic hail table info
+        println("Exporting hail table data to file $csv_file"); flush(stdout)
         hail_table = hail.read_table(ht_file)
         hail_table.export(tsv_file)
+        # read chr/pos/ref/alt
+        df = CSV.read(tsv_file, DataFrame)
+        locus = split.(df[!, "locus"], ':')
+        chr = [locus[i][1] for i in eachindex(locus)] |> Vector{String}
+        pos = [parse(Int, locus[i][2]) for i in eachindex(locus)]
+        ref, alt = _extract_ref_alt_alleles(df[!, "alleles"])
+        # check that within each chr, basepair positions are sorted
+        for c in unique(chr)
+            idx = findall(x -> x == c, chr)
+            issorted(@view(pos[idx])) || 
+                error("Basepair positions in chr $chr not sorted!")
+        end
+        # alt allele freq
+        if !("AF" in names(df))
+            df[!, :AF] = 
+                _extract_alternate_allele_freq(df, header_name=alt_allele_header)
+        end
+        # save csv file
+        df[!, :chr] = chr
+        df[!, :pos] = pos
+        df[!, :ref] = ref
+        df[!, :alt] = alt
+        select!(df, Not([:idx, :locus, :alleles]))
+        if alt_allele_header in names(df)
+            select!(df, Not(Symbol(alt_allele_header)))
+        end
+        CSV.write(csv_file, df)
     end
-    return CSV.read(tsv_file, DataFrame)
+    return CSV.read(csv_file, DataFrame)
 end
 
 """
-    get_row_info(ht_file::String)
+    _extract_alternate_allele_freq(df::DataFrame; header_name = "pop_freq")
 
-Reads chromosome/position/reference-allele/alternate-allele/alternate-allele-frequency
-of each variable in the variant index files, and the human genome build. 
-Some panels (e.g. Pan-UKB) also contain rsID, but others (e.g. gnomAD) does not,
-so rsID is not saved by default. 
-"""
-function get_row_info(ht_file::String)
-    df = read_variant_index_tables(ht_file)
-    locus = split.(df[!, "locus"], ':')
-    chr = [locus[i][1] for i in eachindex(locus)] |> Vector{String}
-    pos = [parse(Int, locus[i][2]) for i in eachindex(locus)]
-    ref, alt = _extract_ref_alt_alleles(df[!, "alleles"])
-    build = extract_genome_build(ht_file)
-    af = "AF" in names(df) ? df[!, "AF"] : extract_alternate_allele_freq(ht_file)
-    # check that within each chr, basepair positions are sorted
-    for c in unique(chr)
-        idx = findall(x -> x == c, chr)
-        issorted(@view(pos[idx])) || 
-            error("Basepair positions in chr $chr not sorted!")
-    end
-    return chr, pos, ref, alt, af, build
-end
-
-"""
-    extract_alternate_allele_freq(ht_file::String)
-
-Extract alternate allele frequency from the `ht_file` assuming this information 
-is present in the variant index files as JSON format with header `header_name`
+Internal helper function that extracts alternate allele frequency from the 
+`ht_file` assuming this information is present in the variant index files 
+as JSON format with header `header_name`. Only `gnomAD` panel will actually
+reach here since Pan-UKB has `AF` as a separate field in its variant index files
 
 For example, in gnomAD, we have
 ```julia
-julia> ht_file = "gnomad.genomes.r2.1.1.nfe_test.common.adj.ld.variant_indices.ht"
-julia> df = read_variant_index_tables(ht_file)
+julia> tsv_file = "gnomad.genomes.r2.1.1.nfe.common.adj.ld.variant_indices.ht/variant.ht.tsv"
+julia> df = CSV.read(tsv_file, DataFrame)
 julia> names(df)
 4-element Vector{String}:
  "locus"
@@ -191,21 +206,22 @@ julia> df[1, "pop_freq"] # first entry with header `pop_freq` that contains AF
 ```
 Then the AF field for all variants will be extracted
 """
-function extract_alternate_allele_freq(ht_file::String; header_name = "pop_freq")
-    df = read_variant_index_tables(ht_file)
+function _extract_alternate_allele_freq(df::DataFrame; header_name = "pop_freq")
     af = zeros(Float64, size(df, 1))
     for (i, s) in enumerate(df[!, header_name])
-        d = JSON.parse(s)
-        af[i] = d["AF"]
+        af[i] = JSON.parse(s)["AF"]
     end
     return af
 end
 
 """
-    _extract_ref_alt_alleles(x::Vector{String})
+    _extract_ref_alt_alleles(alleles::Vector{String})
 
-Helper function to extract the ref/alt alleles from hail tables. Users should call
-`get_row_info` instead of this function. 
+Internal helper function to extract the ref/alt alleles from hail tables. Each 
+element of `alleles` should be a `string` that has 2 alleles wrapped in quotations,
+as in the case for Pan-UKB and gnomAD. The first is assumed to be reference and 
+the second is alt. As an example, `["CCTAA","C"]` with give `ref = "CCTAA"` and 
+`alt = "C"`. 
 """
 function _extract_ref_alt_alleles(alleles::Vector{String})
     ref, alt = String[], String[]
@@ -224,31 +240,22 @@ function _extract_ref_alt_alleles(alleles::Vector{String})
     end
     return ref, alt
 end
-# function _extract_ref_alt_alleles(alleles::Vector{String}) # too slow
-#     regex = r"\"(.*?)\""
-#     refs, alts = String[], String[]
-#     for allele in alleles
-#         A1, A2 = split(s, ',')
-#         push!(refs, match(regex, A1).captures[1])
-#         push!(alts, match(regex, A2).captures[1])
-#     end
-#     return refs, alts
-# end
 
 """
-    extract_human_genome_build(ht_file::String)
+    _extract_genome_build(ht_file::String)
 
-Extracts the human genome build information from the variant index folder. We 
-assume this information is stored in a file called `metadata.json` or 
-`metadata.json.gz` for format `Locus(XXX)` where `XXX` is the reference build.
-If this format is not detected, the genome build information will be "Unknown"
+Internal helper function to extracts the human genome build information from 
+the variant index folder. We assume this information is stored in a file called 
+`metadata.json` or `metadata.json.gz` in the following format `Locus(XXX)` where
+`XXX` is the reference build. If this format is not detected, the genome build
+information will be "Unknown"
 """
-function extract_genome_build(ht_file::String)
+function _extract_genome_build(ht_file::String)
     locus_dat = ""
     if isfile(joinpath(ht_file, "metadata.json"))
-        locus_dat = read_metadata(joinpath(ht_file, "metadata.json"))["table_type"]
+        locus_dat = _read_metadata(joinpath(ht_file, "metadata.json"))["table_type"]
     elseif isfile(joinpath(ht_file, "metadata.json.gz"))
-        locus_dat = read_metadata(joinpath(ht_file, "metadata.json.gz"))["table_type"]      
+        locus_dat = _read_metadata(joinpath(ht_file, "metadata.json.gz"))["table_type"]      
     end
     # search for pattern Locus(XXX)
     regex = r"Locus\((.*?)\)"
@@ -256,12 +263,12 @@ function extract_genome_build(ht_file::String)
 end
 
 """
-    read_metadata(metafile::String)
+    _read_metadata(metafile::String)
 
-Reads the metadata file and returns a dictionary. `metafile` should end with 
-`.json` or `.json.gz`
+Internal helpder function that reads the metadata file and returns a dictionary.
+`metafile` should end with `.json` or `.json.gz`
 """
-function read_metadata(metafile::String)
+function _read_metadata(metafile::String)
     if endswith(metafile, ".json")
         s = read(metafile) |> String
     elseif endswith(metafile, ".json.gz")
