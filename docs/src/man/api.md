@@ -19,10 +19,12 @@ Pages = ["api.md"]
   get_block
 ```
 
-## Internal helpder functions
+## Internal helper functions and structs
+
 ```@docs
-  _extract_alternate_allele_freq
-  _extract_ref_alt_alleles
-  _extract_genome_build
-  _read_metadata
+  EasyLD.HailBlockMatrix
+  EasyLD._extract_alternate_allele_freq
+  EasyLD._extract_ref_alt_alleles
+  EasyLD._extract_genome_build
+  EasyLD._read_metadata
 ```

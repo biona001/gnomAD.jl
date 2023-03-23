@@ -23,6 +23,8 @@ pkg"add https://github.com/biona001/EasyLD.jl"
 ```@contents
 Pages = [
     "man/api.md"
+    "man/pan_UKB.md"
+    "man/gnomAD.md"
 ]
 Depth = 2
 ```

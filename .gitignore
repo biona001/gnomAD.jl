@@ -6,3 +6,7 @@ data/gnomad*
 data/UKBB*
 docs/build
 ldetect
+docs/src/.DS_Store
+docs/src/man/.DS_Store
+docs/src/man/.ipynb_checkpoints
+docs/src/man/hail*

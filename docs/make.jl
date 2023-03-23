@@ -6,6 +6,8 @@ makedocs(
     format = Documenter.HTML(),
     modules = [EasyLD],
     pages = [
+	    "Pan UKBB" => "man/pan_UKB.md",
+	    "gnomAD" => "man/gnomAD.md",
         "API" => "man/api.md",
     ]
 )
