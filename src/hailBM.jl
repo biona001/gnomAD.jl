@@ -47,6 +47,19 @@ Reads in a block of LD matrix from chromosome `chr` between basepairs
 `start_bp` and `end_bp`. The inputs `chr`, `start_bp`, `end_bp` can be Int
 or String. The result will always be a matrix even if `start_bp == end_bp`.
 
+# Inputs
++ `bm`: A `HailBlockMatrix`
++ `chr`: Chromosome number, can be an Int or String (e.g. `1` or `"1"`)
++ `start_bp`: Starting basepair, can be an Int or String
++ `end_bp`: Ending basepair, can be an Int or String
+
+# Optional inputs
++ `min_maf`: Minimum minor allele frequency. Only variants with alternate allele
+    frequency between [min_maf, 1-min_maf] is kept. Default `min_maf=0.01`
++ `snps_to_keep`: Vector of SNP positions to import. If both `snps_to_keep` and
+    `min_maf` are specified, only SNPs whose position is listed in `snps_to_keep`
+    whose minor allele frequency exceeds `min_maf` will be kept. 
+
 If `start_bp` or `end_bp` is not in the LD matrix, we will return
 the smallest region that does NOT include them. For example, if 
 `(start_bp, end_bp) = (555, 777)`
@@ -60,7 +73,9 @@ Make sure `start_bp` and `end_bp` is from the same human genome build as the
 LD matrices. Pan-UKBB and genomAD both use hg38.
 """
 function get_block(bm::HailBlockMatrix, chr::Union{String, Int}, 
-    start_bp::Union{String, Int}, end_bp::Union{String, Int})
+    start_bp::Union{String, Int}, end_bp::Union{String, Int};
+    min_maf::Real = 0.01, snps_to_keep::Union{AbstractVector{Int}, Nothing}=nothing
+    )
     # convert start_bp/end_bp to Int and chr to String
     start_bp = typeof(start_bp) == Int ? start_bp : parse(Int, start_bp)
     end_bp = typeof(end_bp) == Int ? end_bp : parse(Int, end_bp)
@@ -68,11 +83,20 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     # search for starting/ending position
     chr_range = findall(x -> x == chr, bm.info[!, "chr"])
     chr_pos = @view(bm.info[chr_range, "pos"])
-    end_bp < chr_pos[1] && error("end_bp occurs before first SNP in bm")
-    start_bp > chr_pos[end] && error("start_bp occurs after last SNP in bm")
-    idx_start = searchsortedfirst(chr_pos, start_bp)
-    idx_end = searchsortedlast(chr_pos, end_bp)
-    return bm[idx_start:idx_end, idx_start:idx_end]
+    end_bp < chr_pos[1] && error("end_bp occurs before first SNP in chr$chr of bm")
+    start_bp > chr_pos[end] && error("start_bp occurs after last SNP in chr$chr of bm")
+    # import LD block and snp information
+    chr_offset = chr_range[1] - 1
+    idx_start = searchsortedfirst(chr_pos, start_bp) + chr_offset
+    idx_end = searchsortedlast(chr_pos, end_bp) + chr_offset
+    sigma = bm[idx_start:idx_end, idx_start:idx_end]
+    df = bm.info[idx_start:idx_end, :]
+    # keep SNPs with MAF above threshold and only SNPs that are requested to keep
+    idx = findall(x -> 1-min_maf ≥ x ≥ min_maf, bm.info[idx_start:idx_end, "AF"])
+    if !isnothing(snps_to_keep) 
+        intersect!(idx, indexin(snps_to_keep, df[!, "pos"]))
+    end
+    return sigma[idx, idx], df[idx, :]
 end
 
 Base.size(x::HailBlockMatrix, k::Int) = 
