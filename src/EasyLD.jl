@@ -7,6 +7,8 @@ using CSV
 using DataFrames
 using JSON
 using CodecZlib
+using LinearAlgebra
+using StatsBase: cov2cor!
 
 export download_gnomad_LD_matrices,
     download_ukb_LD_matrices,

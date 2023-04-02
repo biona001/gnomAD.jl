@@ -41,11 +41,19 @@ function _get_block(x::HailBlockMatrix,
 end
 
 """
-    get_block(bm::HailBlockMatrix, chr, start_bp, end_bp)
+    get_block(bm::HailBlockMatrix, chr, start_bp, end_bp; [min_maf], [snps_to_keep])
 
 Reads in a block of LD matrix from chromosome `chr` between basepairs 
 `start_bp` and `end_bp`. The inputs `chr`, `start_bp`, `end_bp` can be Int
-or String. The result will always be a matrix even if `start_bp == end_bp`.
+or String. The result will always be a matrix even if `start_bp == end_bp`. If 
+`start_bp` or `end_bp` is not in the LD matrix, we will return
+the smallest region that does NOT include them. For example, if 
+`(start_bp, end_bp) = (555, 777)`
+and SNP positions in the LD panel are 
+`positions = [..., 400,  500,  600,  700,  800,  900, ...]`
+with
+`snp_names = [..., snp4, snp5, snp6, snp7, snp8, snp9, ..]`, 
+then we will return the LD matrix for `[snp6, snp7]`
 
 # Inputs
 + `bm`: A `HailBlockMatrix`
@@ -55,26 +63,24 @@ or String. The result will always be a matrix even if `start_bp == end_bp`.
 
 # Optional inputs
 + `min_maf`: Minimum minor allele frequency. Only variants with alternate allele
-    frequency between [min_maf, 1-min_maf] is kept. Default `min_maf=0.01`
+    frequency between `[min_maf, 1-min_maf]` is kept. Default `min_maf=0.01`
 + `snps_to_keep`: Vector of SNP positions to import. If both `snps_to_keep` and
     `min_maf` are specified, only SNPs whose position is listed in `snps_to_keep`
     whose minor allele frequency exceeds `min_maf` will be kept. 
-
-If `start_bp` or `end_bp` is not in the LD matrix, we will return
-the smallest region that does NOT include them. For example, if 
-`(start_bp, end_bp) = (555, 777)`
-and SNP positions in the LD panel are 
-`bm.pos    = [..., 400,  500,  600,  700,  800,  900, ...]`
-`snp_names = [..., snp4, snp5, snp6, snp7, snp8, snp9, ..]`
-then we will return the LD matrix for `[snp6, snp7]`
++ `enforce_psd`: LD data stored in Pan-UKB or gnomAD LD panels only includes the
+    upper triangular portion. If `enforce_psd` is true, we will copy the upper 
+    triangular portion to the lower triangular portion, and then scale the
+    covariance matrix into a correlation matrix (default `true`)
 
 # Note
 Make sure `start_bp` and `end_bp` is from the same human genome build as the 
-LD matrices. Pan-UKBB and genomAD both use hg38.
+LD matrices. One can verify build information via `bm.build`. Both Pan-UKBB and 
+gnomAD uses hg19 (i.e. GRCh37).
 """
 function get_block(bm::HailBlockMatrix, chr::Union{String, Int}, 
     start_bp::Union{String, Int}, end_bp::Union{String, Int};
-    min_maf::Real = 0.01, snps_to_keep::Union{AbstractVector{Int}, Nothing}=nothing
+    min_maf::Real = 0.01, snps_to_keep::Union{AbstractVector{Int}, Nothing}=nothing,
+    enforce_psd::Bool=true
     )
     # convert start_bp/end_bp to Int and chr to String
     start_bp = typeof(start_bp) == Int ? start_bp : parse(Int, start_bp)
@@ -96,7 +102,20 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     if !isnothing(snps_to_keep) 
         intersect!(idx, indexin(snps_to_keep, df[!, "pos"]))
     end
-    return sigma[idx, idx], df[idx, :]
+    Sigma = sigma[idx, idx]
+    df = df[idx, :]
+    # ensure Sigma is PSD
+    if enforce_psd
+        LinearAlgebra.copytri!(Sigma, 'U') # copy upper triangular part to lower triangular
+        epsilon = 1e-8
+        while !isposdef(Symmetric(Sigma))
+            Sigma += epsilon*I
+            epsilon *= 10
+            epsilon ≥ 0.001 && error("Sigma cannot be scaled to become PSD?")
+        end
+        cov2cor!(Sigma, sqrt.(diag(Sigma))) # scale to correlation matrix
+    end
+    return Sigma, df
 end
 
 Base.size(x::HailBlockMatrix, k::Int) = 
