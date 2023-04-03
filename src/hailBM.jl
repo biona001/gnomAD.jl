@@ -107,10 +107,11 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     # ensure Sigma is PSD
     if enforce_psd
         LinearAlgebra.copytri!(Sigma, 'U') # copy upper triangular part to lower triangular
-        epsilon = 1e-8
+        epsilon = 1e-10
+        Sigma += epsilon*I
         while !isposdef(Symmetric(Sigma))
-            Sigma += epsilon*I
             epsilon *= 10
+            Sigma += epsilon*I
             epsilon ≥ 0.001 && error("Sigma cannot be scaled to become PSD?")
         end
         cov2cor!(Sigma, sqrt.(diag(Sigma))) # scale to correlation matrix
