@@ -67,10 +67,14 @@ then we will return the LD matrix for `[snp6, snp7]`
 + `snps_to_keep`: Vector of SNP positions to import. If both `snps_to_keep` and
     `min_maf` are specified, only SNPs whose position is listed in `snps_to_keep`
     whose minor allele frequency exceeds `min_maf` will be kept. 
++ `min_eigval`: Smallest eigenvalue allowed in Σ. All eigenvalues smaller than 
+    `min_eigval` will be set to `min_eigval` (default `1e-5`). This option is only
+    used if `enforce_psd=true`.
 + `enforce_psd`: LD data stored in Pan-UKB or gnomAD LD panels only includes the
     upper triangular portion. If `enforce_psd` is true, we will copy the upper 
-    triangular portion to the lower triangular portion, and then scale the
-    covariance matrix into a correlation matrix (default `true`)
+    triangular portion to the lower triangular portion, force eigenvalues to be
+    above `min_eigval`, and then scale the covariance matrix into a correlation
+    matrix (default `true`)
 
 # Note
 Make sure `start_bp` and `end_bp` is from the same human genome build as the 
@@ -80,7 +84,7 @@ gnomAD uses hg19 (i.e. GRCh37).
 function get_block(bm::HailBlockMatrix, chr::Union{String, Int}, 
     start_bp::Union{String, Int}, end_bp::Union{String, Int};
     min_maf::Real = 0.01, snps_to_keep::Union{AbstractVector{Int}, Nothing}=nothing,
-    enforce_psd::Bool=true
+    min_eigval = 1e-5, enforce_psd::Bool=true
     )
     # convert start_bp/end_bp to Int and chr to String
     start_bp = typeof(start_bp) == Int ? start_bp : parse(Int, start_bp)
@@ -107,13 +111,9 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     # ensure Sigma is PSD
     if enforce_psd
         LinearAlgebra.copytri!(Sigma, 'U') # copy upper triangular part to lower triangular
-        epsilon = 1e-10
-        Sigma += epsilon*I
-        while !isposdef(Symmetric(Sigma))
-            epsilon *= 10
-            Sigma += epsilon*I
-            epsilon ≥ 0.001 && error("Sigma cannot be scaled to become PSD?")
-        end
+        evals, evecs = eigen(Sigma)
+        evals[findall(x -> x < min_eigval, evals)] .= min_eigval
+        Sigma = evecs * Diagonal(evals) * evecs'
         cov2cor!(Sigma, sqrt.(diag(Sigma))) # scale to correlation matrix
     end
     return Sigma, df
