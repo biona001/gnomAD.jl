@@ -75,6 +75,11 @@ then we will return the LD matrix for `[snp6, snp7]`
     triangular portion to the lower triangular portion, force eigenvalues to be
     above `min_eigval`, and then scale the covariance matrix into a correlation
     matrix (default `true`)
++ `rk`: An `Int`. If specified and `enforce_psd=true`, we will keep only the top
+    `rk` eigenvalues of imported `Σ` before truncating the rest to `min_eigval`.
+    This experiments with the "truncated-SVD" approach of 
+    `https://www.sciencedirect.com/science/article/pii/S0002929717303919#bib19`
+    (default `Inf`)
 
 # Note
 Make sure `start_bp` and `end_bp` is from the same human genome build as the 
@@ -84,7 +89,7 @@ gnomAD uses hg19 (i.e. GRCh37).
 function get_block(bm::HailBlockMatrix, chr::Union{String, Int}, 
     start_bp::Union{String, Int}, end_bp::Union{String, Int};
     min_maf::Real = 0.01, snps_to_keep::Union{AbstractVector{Int}, Nothing}=nothing,
-    min_eigval = 1e-5, enforce_psd::Bool=true
+    min_eigval = 1e-5, enforce_psd::Bool=true, rk=Inf,
     )
     # convert start_bp/end_bp to Int and chr to String
     start_bp = typeof(start_bp) == Int ? start_bp : parse(Int, start_bp)
@@ -112,6 +117,9 @@ function get_block(bm::HailBlockMatrix, chr::Union{String, Int},
     if enforce_psd
         LinearAlgebra.copytri!(Sigma, 'U') # copy upper triangular part to lower triangular
         evals, evecs = eigen(Sigma)
+        if length(evals) > rk
+            evals[1:length(evals)-rk] .= min_eigval
+        end
         evals[findall(x -> x < min_eigval, evals)] .= min_eigval
         Sigma = evecs * Diagonal(evals) * evecs'
         cov2cor!(Sigma, sqrt.(diag(Sigma))) # scale to correlation matrix
