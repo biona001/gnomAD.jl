@@ -42,3 +42,4 @@ Conda.add("nomkl")
 Conda.add("hail")
 ```
 + `OutOfMemoryError: Java heap space`: Try increasing the java heap size by adding `export _JAVA_OPTIONS="-Xmx24g"` to your `.bash_profile` file. Here the `-Xmx24g` implies maximum heap size of 24 GB, which you are free to adjust. 
++ `Can't find AWS credentials!` This package internally downloads LD matrices from AWS, thus one needs to register an AWS account first and obtain [AWS credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html). Usually, this means you should have a folder `.aws` in your home directory with the `credential` file. 
