@@ -41,7 +41,8 @@ function _get_block(x::HailBlockMatrix,
 end
 
 """
-    get_block(bm::HailBlockMatrix, chr, start_bp, end_bp; [min_maf], [snps_to_keep])
+    get_block(bm::HailBlockMatrix, chr, start_bp, end_bp; [min_maf], 
+        [snps_to_keep], [min_eigval], [enforce_psd], [rk])
 
 Reads in a block of LD matrix from chromosome `chr` between basepairs 
 `start_bp` and `end_bp`. The inputs `chr`, `start_bp`, `end_bp` can be Int
@@ -190,7 +191,7 @@ function hail_block_matrix(bm_files::String, ht_files::String)
 end
 
 """
-    read_variant_index_tables(ht_file::String)
+    read_variant_index_tables(ht_file::String; [alt_allele_header], [reprocess])
 
 Read variant index hail tables into a `DataFrame`. The first time this function
 gets called, we will read the original `.ht` files into memory and write the
