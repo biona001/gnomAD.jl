@@ -171,8 +171,22 @@ function hail_block_matrix(bm_files::String, ht_files::String)
     isdir(bm_files) || error("Directory $bm_files does not exist")
     df = read_variant_index_tables(ht_files)
     build = _extract_genome_build(ht_files)
-    return HailBlockMatrix(bm_files, df, build,
+    bm = HailBlockMatrix(bm_files, df, build,
         hail_linalg.BlockMatrix.read(bm_files))
+
+    if size(bm, 1) != size(bm.info, 1)
+        @warn "Dimension of variant index files does not agree " * 
+            "with block matrix files, retrying the pre-processing step..."
+        df = read_variant_index_tables(ht_files, reprocess=true)
+        bm = HailBlockMatrix(bm_files, df, build,
+            hail_linalg.BlockMatrix.read(bm_files))
+        size(bm, 1) != size(bm.info, 1) && error(
+            "Dimension of variant index files still does not agree " * 
+            "with block matrix files, please try re-downloading the files."
+            )
+    end
+
+    return bm
 end
 
 """
@@ -182,7 +196,8 @@ Read variant index hail tables into a `DataFrame`. The first time this function
 gets called, we will read the original `.ht` files into memory and write the
 result to a tab-separated value `.tsv` file into the same directory as `ht_file`, 
 and we will also create a comma separated file ending in `.csv` which pre-process
-the `.tsv` file for easier reading. 
+the `.tsv` file for easier reading. If `reprocess=true`, we will re-run the
+preprocessing step.
 
 # Note
 + `rsIDs`: Some panels (e.g. Pan-UKB) also contain rsID, but others (e.g. gnomAD) does not,
@@ -195,11 +210,12 @@ the `.tsv` file for easier reading.
     formatted, and further that alt-allele freq is available as `AF` key. See
     [`_extract_alternate_allele_freq`](@ref)
 """
-function read_variant_index_tables(ht_file::String; alt_allele_header = "pop_freq")
+function read_variant_index_tables(ht_file::String; 
+    alt_allele_header = "pop_freq", reprocess::Bool=false)
     isdir(ht_file) || error("$ht_file is not a directory")
     tsv_file = joinpath(ht_file, "variant.ht.tsv")
     csv_file = joinpath(ht_file, "variant.ht.csv")
-    if !isfile(csv_file)
+    if reprocess || !isfile(csv_file)
         # first export basic hail table info
         println("Exporting hail table data to file $csv_file"); flush(stdout)
         hail_table = hail.read_table(ht_file)
